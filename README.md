@@ -1,5 +1,5 @@
-# Litchi Account API Server
-일임계약 가원장 관리 서버
+# User Manager API Server
+유저 관리 서버
 
 ## Tech
 * [Django] - Python 웹 애플리케이션 프레임워크
