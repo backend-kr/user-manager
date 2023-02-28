@@ -55,7 +55,7 @@ User Manager API Server는 Docker 컨테이너로 설치하고 배포가 가능�
 $ docker build -t user_manager .
 
 # M1 아키텍쳐
-$ docker build -t user-manager --platform=linux/amd64 .
+$ docker build -t user_manager --platform=linux/amd64 .
 
 ```
 
