@@ -11,7 +11,6 @@ from rest_framework import serializers, status
 from rest_framework.validators import ValidationError
 from rest_framework.exceptions import AuthenticationFailed, NotAuthenticated, NotFound
 
-from common.algorithms.seed_cbc import SeedCBC
 from common.exceptions import ConflictException, PreconditionFailed
 from common.utils import DotDict
 
