@@ -1,0 +1,15 @@
+version: "3"
+
+services:
+  django:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: user-manager
+    environment:      
+      - RUNNING_ENV=local
+      - TZ=Asia/Seoul
+    volumes:
+    - ./:/webapp/server/
+    ports:
+      - "80:80"
