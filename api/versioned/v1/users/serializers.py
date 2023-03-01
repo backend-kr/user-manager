@@ -78,6 +78,7 @@ class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
         fields = '__all__'
+        lockable_fields = ('ci',)
         extra_kwargs = {
             'user': {'read_only': True}
         }
@@ -228,6 +229,26 @@ class PayLoadSerializer(serializers.Serializer):
     """토큰 관리 시리얼라이저"""
     token = serializers.CharField()
     expiry = serializers.IntegerField()
+
+
+class RefreshTokenSerializer(serializers.ModelSerializer):
+    key = serializers.CharField()
+    expiry = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = ExpiringToken
+        fields = ('key', 'expiry')
+
+    def validate(self, attrs):
+        attrs['key'] = self.instance.generate_key()
+        return super().validate(attrs)
+
+    def update(self, instance, validated_data):
+        user = instance.user
+        instance.delete()
+        self.instance = ExpiringToken.objects.create(user=user)
+        return self.instance
+
 
 class UserLoginSerializer(serializers.Serializer):
     email = serializers.EmailField(write_only=True, required=False)

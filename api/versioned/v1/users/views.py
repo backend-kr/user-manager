@@ -5,8 +5,10 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from rest_framework import viewsets
+from rest_framework.generics import get_object_or_404
+
 from api.versioned.v1.users.serializers import UserSerializer, UserCreateSerializer, UserLoginSerializer, \
-    UserRetrieveSerializer, UserUpdateSerializer, ProfileSerializer
+    UserRetrieveSerializer, UserUpdateSerializer, ProfileSerializer, RefreshTokenSerializer
 from common.permissions import IsOwnerOrAdminUser, IsOwner
 from django.contrib.auth import get_user_model, logout
 from django.contrib.auth.signals import user_logged_in
@@ -16,7 +18,7 @@ from rest_framework.serializers import Serializer
 from django.conf import settings
 from rest_framework.exceptions import ParseError, NotAcceptable
 from django.forms.models import model_to_dict
-from api.bases.users.models import Profile, Image, User
+from api.bases.users.models import Profile, Image, User, ExpiringToken
 from axes.decorators import axes_dispatch
 from axes.utils import reset as axes_reset
 
@@ -46,7 +48,6 @@ class UserViewSet(MappingViewSetMixin, viewsets.ModelViewSet):
     queryset = get_user_model().objects.all().prefetch_related('groups', 'user_permissions')
     serializer_class = UserSerializer
 
-    # Forbidden: /api/v1/users/aa3a5974-472f-4a18-bbf6-717ed690a3f0
     serializer_action_map = {
         'retrieve': UserRetrieveSerializer,
         'partial_update': UserUpdateSerializer,
@@ -60,7 +61,7 @@ class UserViewSet(MappingViewSetMixin, viewsets.ModelViewSet):
         'create': [AllowAny],
         'destroy': [IsOwnerOrAdminUser],
         'health_check': [IsAuthenticated],
-        'retrieve': [IsAuthenticated],
+        'retrieve': [IsOwner],
         'logout': [IsAuthenticated]
     }
 
@@ -151,3 +152,17 @@ class UserProfileOnwerViewSet(MappingViewSetMixin, viewsets.ModelViewSet):
 
     def get_object(self):
         return self.get_queryset().get()
+
+
+class RefreshTokenViewSet(viewsets.ModelViewSet):
+    queryset = ExpiringToken.objects.all()
+    serializer_class = RefreshTokenSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        return ExpiringToken.objects.filter(user__site=get_current_site(self.request))
+
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset())
+        obj = get_object_or_404(queryset, **self.request.data)
+        return obj
