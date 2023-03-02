@@ -73,7 +73,7 @@ INSTALLED_APPS = [
     'encrypted_model_fields',
     'drf_yasg',
     'api.bases.users',
-
+    'elasticapm.contrib.django',
 ]
 
 MIDDLEWARE = [
@@ -85,6 +85,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'axes.middleware.AxesMiddleware',
+    'elasticapm.contrib.django.middleware.TracingMiddleware',
 ]
 
 ROOT_URLCONF = 'ums.urls'
@@ -160,6 +161,11 @@ USE_I18N = True
 
 USE_TZ = True
 
+ELASTIC_APM = {
+    "SERVICE_NAME": "user_manager",
+    "DEBUG": True,
+    "CAPTURE_BODY": "transactions"
+}
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
