@@ -18,13 +18,8 @@ from django.contrib.sites.models import Site
 from django.contrib.sites.shortcuts import get_current_site
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from django.template.loader import render_to_string
-from django.template import Template as DjangoTemplate, Context
-from django.urls import reverse
 
 from rest_framework.authtoken.models import Token
-from rest_framework.validators import ValidationError
-from encrypted_model_fields.fields import EncryptedCharField
 from api.bases.users.choices import ProfileChoices
 
 logger = logging.getLogger('django.server')
@@ -63,14 +58,6 @@ class UserManager(BaseUserManager):
                 **{'is_active': True, self.model.USERNAME_FIELD: username, 'site': get_current_site(request)})
         else:
             return self.get(**{'is_active': True, self.model.USERNAME_FIELD: username})
-
-    def get_by_ci(self, ci, request=None):
-        ci_hash = hashlib.sha256(ci.encode('utf-8')).hexdigest()
-        if request and apps.is_installed('django.contrib.sites'):
-            return self.get(**{'is_active': True, 'profile__ci_hash': ci_hash, 'site': get_current_site(request)})
-        else:
-            return self.get(**{'is_active': True, 'profile__ci_hash': ci_hash})
-
 
 def get_default_site():
     try:
@@ -153,8 +140,6 @@ class Profile(models.Model):
     phone = models.CharField(max_length=20, null=True, blank=True, help_text='휴대폰 번호')
     mobile_carrier = models.CharField(max_length=2, choices=ProfileChoices.MOBILE_CARRIER, null=True, blank=True,
                                       help_text='휴대폰 통신사')
-    ci = EncryptedCharField(max_length=128, blank=True, null=True, help_text='고유식별번호')
-    ci_hash = models.CharField(max_length=64, blank=True, null=True, help_text='고유 식별번호 Hash값', editable=False)
     address = models.CharField(max_length=120, null=True, blank=True, help_text='주소')
     birth_date = models.DateField(null=True, blank=True, help_text='생년월일')
     gender_code = models.PositiveSmallIntegerField(choices=ProfileChoices.GENDER_TYPE, null=True, blank=True,

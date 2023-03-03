@@ -73,27 +73,13 @@ class ProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email', read_only=True)
     gender = serializers.SerializerMethodField(read_only=True)
     avatar = serializers.SerializerMethodField(read_only=True)
-    ci = serializers.CharField(write_only=True, required=False)
 
     class Meta:
         model = Profile
         fields = '__all__'
-        lockable_fields = ('ci',)
         extra_kwargs = {
             'user': {'read_only': True}
         }
-
-    def get_fields(self):
-        fields = super().get_fields()
-
-        if self.instance:
-            for field_name in self.Meta.lockable_fields:
-                try:
-                    fields[field_name].read_only = bool(getattr(self.instance, field_name))
-                except:
-                    pass
-
-        return fields
 
     def get_gender(self, obj):
         if obj.gender_code is not None:
@@ -106,6 +92,18 @@ class ProfileSerializer(serializers.ModelSerializer):
 
         return Image.default_image(instance.user.get_random_digit())
 
+    def to_representation(self, instance):
+        instance = super().to_representation(instance)
+        # 신규가입시, user가 없음 조치 필요
+        try:
+            instance.update({"date_joined": self.instance.user.date_joined,
+                             "last_login": self.instance.user.last_login,
+                             "last_password_change": self.instance.user.last_password_change})
+        except:
+            pass
+
+        return instance
+
 
 class UserUpdateSerializer(UserSerializer):
     profile = ProfileSerializer()
@@ -115,37 +113,6 @@ class UserUpdateSerializer(UserSerializer):
     class Meta:
         model = get_user_model()
         fields = '__all__'
-
-    def update(self, instance, validated_data):
-        info = serializers.model_meta.get_field_info(instance)
-
-        for attr, value in validated_data.items():
-            if attr in info.relations and info.relations[attr].to_many:
-                serializers.set_many(instance, attr, value)
-            elif isinstance(validated_data[attr], dict):
-                nested_instance = getattr(instance, attr)
-                [setattr(nested_instance, _attr, _value) for _attr, _value in validated_data[attr].items()]
-                nested_instance.save()
-            else:
-                if attr != 'password':
-                    setattr(instance, attr, value)
-                else:
-                    try:
-                        validators.validate_password(value, user=instance)
-                    except django_validation_error as e:
-                        raise ValidationError({"password": e.messages})
-                    instance.set_password(value)
-        instance.save()
-
-        return instance
-
-class UserRetrieveSerializer(UserSerializer):
-    profile = ProfileSerializer()
-    password = serializers.CharField(write_only=True)
-
-    class Meta:
-        model = get_user_model()
-        exclude = ('is_staff', 'is_active', 'user_permissions', 'groups', 'site', 'is_superuser')
 
     def update(self, instance, validated_data):
         info = serializers.model_meta.get_field_info(instance)
@@ -182,9 +149,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         password = attrs.get('password')
-        ci = attrs.get('profile', {}).get('ci')
 
-        if not (password or ci):
+        if not password:
             raise serializers.ValidationError("Either Password or Profile's secret field is required.")
 
         return attrs
@@ -312,8 +278,3 @@ class UserLoginSerializer(serializers.Serializer):
             raise AuthenticationFailed(AuthenticationFailed().get_full_details())
 
         return attrs
-
-
-class ProfileRetrieveSerializer(ProfileSerializer):
-    ci = serializers.CharField(read_only=True)
-    ci_encrypted = serializers.CharField(read_only=True, source='get_encrypted_ci')

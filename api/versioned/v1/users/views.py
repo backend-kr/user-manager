@@ -8,32 +8,24 @@ from rest_framework import viewsets
 from rest_framework.generics import get_object_or_404
 
 from api.versioned.v1.users.serializers import UserSerializer, UserCreateSerializer, UserLoginSerializer, \
-    UserRetrieveSerializer, UserUpdateSerializer, ProfileSerializer, RefreshTokenSerializer
+    UserUpdateSerializer, ProfileSerializer, RefreshTokenSerializer
 from common.permissions import IsOwnerOrAdminUser, IsOwner
 from django.contrib.auth import get_user_model, logout
 from django.contrib.auth.signals import user_logged_in
 from common.viewsets import MappingViewSetMixin
-from rest_framework import status
 from rest_framework.serializers import Serializer
-from django.conf import settings
-from rest_framework.exceptions import ParseError, NotAcceptable
-from django.forms.models import model_to_dict
 from api.bases.users.models import Profile, Image, User, ExpiringToken
-from axes.decorators import axes_dispatch
 from axes.utils import reset as axes_reset
 
 class UserViewSet(MappingViewSetMixin, viewsets.ModelViewSet):
     """
-    list:[유저 목록 조회]
-    유저 목록을 조회합니다. 조회시 email을 기준으로 검색도 가능합니다.
-
     create:[유저 생성]
     유저를 생성한다.
 
-    retrieve:[유저 상세 조회]
+    retrieve:[유저 상세 조회 - 토큰 사용]
     유저의 상세 정보를 조회합니다.
 
-    partial_update:[유저 정보 업데이트]
+    partial_update:[유저 정보 업데이트 - 토큰 사용]
     유저 정보를 업데이트 합니다.
 
     destroy:[유저 삭제]
@@ -47,23 +39,27 @@ class UserViewSet(MappingViewSetMixin, viewsets.ModelViewSet):
     """
     queryset = get_user_model().objects.all().prefetch_related('groups', 'user_permissions')
     serializer_class = UserSerializer
-
     serializer_action_map = {
-        'retrieve': UserRetrieveSerializer,
-        'partial_update': UserUpdateSerializer,
         'create': UserCreateSerializer,
-        'health_check': Serializer,
+        'partial_update': UserUpdateSerializer,
         'logout': Serializer,
+        'health_check': Serializer,
     }
 
     permission_classes = [IsOwner]
     permission_classes_map = {
         'create': [AllowAny],
         'destroy': [IsOwnerOrAdminUser],
+        'logout': [IsAuthenticated],
+        'partial_update': [IsAuthenticated],
         'health_check': [IsAuthenticated],
-        'retrieve': [IsOwner],
-        'logout': [IsAuthenticated]
     }
+
+    def get_queryset(self):
+        return self.queryset.filter(email=self.request.user)
+
+    def get_object(self):
+        return self.get_queryset().get()
 
     def get_permissions(self):
         permission_classes = self.permission_classes
@@ -84,6 +80,9 @@ class UserViewSet(MappingViewSetMixin, viewsets.ModelViewSet):
     @method_decorator(never_cache)
     def logout(self, request, *args, **kwargs):
         logout(request)
+        return Response(status=HTTP_200_OK)
+
+    def health_check(self, request):
         return Response(status=HTTP_200_OK)
 
 class UserLoginTokenViewSet(viewsets.GenericViewSet):
@@ -144,9 +143,12 @@ class UserProfileOnwerViewSet(MappingViewSetMixin, viewsets.ModelViewSet):
     serializer_class = ProfileSerializer
     queryset = Profile.objects.all()
     serializer_action_map = {
-        'retrieve': None
+        'retrieve': None,
+        'partial_update': UserUpdateSerializer
     }
-
+    permission_classes_map = {
+        'retrieve': [IsAuthenticated],
+    }
     def get_queryset(self):
         return self.queryset.filter(user=self.request.user)
 
