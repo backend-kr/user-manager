@@ -1,6 +1,7 @@
-from django.urls import path, re_path
+from django.urls import path, re_path, include
 from common.routers import CustomSimpleRouter
 from .views import UserViewSet, UserLoginTokenViewSet, UserProfileOnwerViewSet, RefreshTokenViewSet
+from .social.urls import urlpatterns as social_urlpatterns
 
 router = CustomSimpleRouter(trailing_slash=False)
 
@@ -11,5 +12,6 @@ urlpatterns = [
     path('logout', UserViewSet.as_view({'get': 'logout'})),
     path('profile', UserProfileOnwerViewSet.as_view({'get': 'retrieve'})),
     path('refresh_token', RefreshTokenViewSet.as_view({'post': 'partial_update'})),
+    path('social', include(social_urlpatterns))
 ]
 urlpatterns += router.urls
